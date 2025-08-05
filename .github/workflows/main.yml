@@ -1,0 +1,32 @@
+name: Asterisk Loan IVR CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Perl Lint
+        run: |
+          sudo cpan Perl::Critic
+          perlcritic agi/loan_status_ivr.pl
+
+      - name: Shell Validation
+        run: bash ci/validate_config.sh
+
+      - name: Unit Tests
+        run: perl test/test_loan_status.pl
+
+      - name: Deploy to Asterisk via SCP
+        run: |
+          scp agi/*.pl root@asterisk-server:/var/lib/asterisk/agi-bin/
+          scp audio_prompts/*/*.wav root@asterisk-server:/var/lib/asterisk/sounds/
+          scp conf/*.conf root@asterisk-server:/etc/asterisk/
+
+      - name: Reload Dialplan
+        run: ssh root@asterisk-server "asterisk -rx 'dialplan reload'"
